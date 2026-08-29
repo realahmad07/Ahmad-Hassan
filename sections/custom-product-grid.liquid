@@ -30,6 +30,7 @@
                   "id": {{ product.id }},
                   "title": {{ product.title | json }},
                   "price": {{ product.price | money | json }},
+                  "image": {{ product.featured_image | image_url: width: 800 | json }},
                   "description": {{ product.description | json }},
                   "url": {{ product.url | json }},
                   "variants": [
@@ -213,8 +214,8 @@
   .modal-product-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    align-items: center;
+    gap: 30px;
+    align-items: start;
   }
 
   .modal-product-media img {
@@ -224,31 +225,41 @@
     object-fit: cover;
     border-radius: 12px;
     background: #f1f1f1;
+    display: block;
   }
 
   .modal-product-content {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
   }
 
   .modal-product-price {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #111;
   }
 
   .modal-product-title {
     margin: 0;
-    font-size: clamp(24px, 3vw, 36px);
-    line-height: 1.2;
+    font-size: clamp(26px, 2.4vw, 38px);
+    line-height: 1.15;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .modal-product-description {
+    color: #555;
+    font-size: 14px;
+    line-height: 1.7;
   }
 
   .modal-product-description p {
     margin: 0;
-    color: #444;
-    line-height: 1.6;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.7;
   }
 
   .variant-select-group {
@@ -271,6 +282,7 @@
     border-radius: 8px;
     background: #fff;
     font-size: 14px;
+    color: #222;
   }
 
   .modal-add-to-cart-btn {
@@ -294,6 +306,12 @@
       gap: 20px;
     }
 
+    .modal-product-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 768px) {
     .modal-product-layout {
       grid-template-columns: 1fr;
     }
@@ -366,13 +384,20 @@
       productPriceEl.textContent = product.price || '';
       productDescriptionEl.innerHTML = product.description || '<p>No description available.</p>';
 
-      if (product.featured_image) {
+      if (product.image) {
+        productImageEl.src = product.image;
+        productImageEl.alt = product.title || 'Product image';
+        productImageEl.style.display = 'block';
+      } else if (product.featured_image) {
         productImageEl.src = product.featured_image;
         productImageEl.alt = product.title || 'Product image';
+        productImageEl.style.display = 'block';
       } else if (product.variants && product.variants.length && product.variants[0].featured_image) {
         productImageEl.src = product.variants[0].featured_image;
+        productImageEl.style.display = 'block';
       } else {
         productImageEl.src = '';
+        productImageEl.style.display = 'none';
       }
 
       renderVariants(product.variants || []);
