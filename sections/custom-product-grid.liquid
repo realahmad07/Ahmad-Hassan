@@ -62,6 +62,29 @@
       {%- endfor -%}
     </div>
   </div>
+
+  <div id="custom-product-modal" class="custom-product-modal" aria-hidden="true">
+    <div class="custom-product-modal__backdrop" aria-hidden="true"></div>
+    <div class="custom-product-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-product-title">
+      <button type="button" class="modal-close-btn" aria-label="Close product modal">×</button>
+
+      <div class="modal-product-layout">
+        <div class="modal-product-media">
+          <img id="modal-product-image" src="" alt="" loading="lazy">
+        </div>
+
+        <div class="modal-product-content">
+          <p class="modal-product-price" id="modal-product-price"></p>
+          <h3 class="modal-product-title" id="modal-product-title"></h3>
+          <div class="modal-product-description" id="modal-product-description"></div>
+
+          <div id="modal-variants-container"></div>
+
+          <button type="button" id="modal-add-to-cart-btn" class="modal-add-to-cart-btn">Add to Cart</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <style>
@@ -137,18 +160,291 @@
     background: #333;
   }
 
+  .custom-product-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+  }
+
+  .custom-product-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .custom-product-modal__dialog {
+    position: relative;
+    z-index: 1;
+    width: min(920px, 100%);
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background: #f5f5f5;
+    border-radius: 50%;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .modal-product-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .modal-product-media img {
+    width: 100%;
+    height: 100%;
+    max-height: 520px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #f1f1f1;
+  }
+
+  .modal-product-content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .modal-product-price {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .modal-product-title {
+    margin: 0;
+    font-size: clamp(24px, 3vw, 36px);
+    line-height: 1.2;
+  }
+
+  .modal-product-description p {
+    margin: 0;
+    color: #444;
+    line-height: 1.6;
+  }
+
+  .variant-select-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .variant-select-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #222;
+  }
+
+  .variant-select-group select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d8d8d8;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 14px;
+  }
+
+  .modal-add-to-cart-btn {
+    margin-top: 10px;
+    padding: 14px 22px;
+    background: #000;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .modal-add-to-cart-btn:hover {
+    background: #333;
+  }
+
   @media screen and (max-width: 900px) {
     .product-grid {
       grid-template-columns: repeat(2, 1fr);
       gap: 20px;
     }
+
+    .modal-product-layout {
+      grid-template-columns: 1fr;
+    }
   }
+
   @media screen and (max-width: 600px) {
     .product-grid {
       grid-template-columns: 1fr;
     }
   }
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('custom-product-modal');
+    if (!modal) return;
+
+    const closeBtn = modal.querySelector('.modal-close-btn');
+    const addToCartBtn = document.getElementById('modal-add-to-cart-btn');
+    const productTitleEl = document.getElementById('modal-product-title');
+    const productPriceEl = document.getElementById('modal-product-price');
+    const productDescriptionEl = document.getElementById('modal-product-description');
+    const productImageEl = document.getElementById('modal-product-image');
+    const variantsContainer = document.getElementById('modal-variants-container');
+
+    let activeProductData = null;
+    let selectedVariantId = null;
+
+    document.addEventListener('click', function (event) {
+      const trigger = event.target.closest('.quick-view-btn');
+      if (!trigger) return;
+
+      const card = trigger.closest('.product-card');
+      if (!card) return;
+
+      const jsonScript = card.querySelector('.product-json');
+      if (!jsonScript) return;
+
+      try {
+        activeProductData = JSON.parse(jsonScript.textContent);
+        openModal(activeProductData);
+      } catch (error) {
+        console.error('Unable to parse product JSON:', error);
+      }
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      });
+    }
+
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal || event.target.classList.contains('custom-product-modal__backdrop')) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+
+    function openModal(product) {
+      if (!product) return;
+
+      productTitleEl.textContent = product.title || 'Product';
+      productPriceEl.textContent = product.price || '';
+      productDescriptionEl.innerHTML = product.description || '<p>No description available.</p>';
+
+      if (product.featured_image) {
+        productImageEl.src = product.featured_image;
+        productImageEl.alt = product.title || 'Product image';
+      } else if (product.variants && product.variants.length && product.variants[0].featured_image) {
+        productImageEl.src = product.variants[0].featured_image;
+      } else {
+        productImageEl.src = '';
+      }
+
+      renderVariants(product.variants || []);
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function renderVariants(variants) {
+      variantsContainer.innerHTML = '';
+
+      if (!variants || !variants.length) {
+        selectedVariantId = null;
+        return;
+      }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'variant-select-group';
+      wrapper.innerHTML = `
+        <label for="modal-variant-select">Variant</label>
+        <select id="modal-variant-select">
+          ${variants.map(function (variant) {
+            return `<option value="${variant.id}" data-title="${variant.title || ''}">${variant.title || 'Default'} - ${variant.price || ''}</option>`;
+          }).join('')}
+        </select>
+      `;
+      variantsContainer.appendChild(wrapper);
+
+      const variantSelect = document.getElementById('modal-variant-select');
+      selectedVariantId = variants[0].id;
+
+      if (variantSelect) {
+        variantSelect.addEventListener('change', function (event) {
+          selectedVariantId = event.target.value;
+        });
+      }
+    }
+
+    if (addToCartBtn) {
+      addToCartBtn.addEventListener('click', async function () {
+        if (!selectedVariantId) return;
+
+        const itemsToAdd = [{ id: Number(selectedVariantId), quantity: 1 }];
+        const variantSelect = document.getElementById('modal-variant-select');
+
+        if (variantSelect) {
+          const selectedOptionText = variantSelect.options[variantSelect.selectedIndex]?.getAttribute('data-title') || '';
+          const normalizedText = selectedOptionText.toLowerCase();
+
+          if (normalizedText.includes('black') && normalizedText.includes('medium')) {
+            try {
+              const response = await fetch('/products/soft-winter-jacket.js');
+              const jacketData = await response.json();
+
+              if (jacketData && jacketData.variants && jacketData.variants.length) {
+                itemsToAdd.push({ id: Number(jacketData.variants[0].id), quantity: 1 });
+              }
+            } catch (error) {
+              console.log('Could not fetch Soft Winter Jacket automatically:', error);
+            }
+          }
+        }
+
+        fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: itemsToAdd })
+        })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error('Unable to add product to cart');
+            }
+            return response.json();
+          })
+          .then(function () {
+            alert('Product(s) successfully added to cart!');
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+          })
+          .catch(function (error) {
+            console.error('Error adding to cart:', error);
+          });
+      });
+    }
+  });
+</script>
 
 {% schema %}
 {
